@@ -32,16 +32,9 @@
       "url": "/tools/tagger/index.html"
     },
     {
-      "id": "tools",
-      "title": "Tools",
-      "isContainer": true,
-      "environments": [ "dev", "preview" ]
-    },
-    {
       "id": "update-feed",
       "title": "Update Feed",
       "environments": [ "dev", "preview" ],
-      "containerId": "tools",
       "event": "update-feed"
     },
     {
