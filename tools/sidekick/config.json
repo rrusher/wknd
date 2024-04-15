@@ -35,7 +35,6 @@
       "id": "update-feed",
       "title": "Update Feed",
       "environments": [ "dev", "preview" ],
-      "containerId": "tools",
       "event": "update-feed"
     },
     {
