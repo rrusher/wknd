@@ -263,6 +263,14 @@ function loadDelayed() {
     return import('./delayed.js');
   }, 3000);
   // load anything that can be postponed to the latest here
+
+  if (document.querySelector('helix-sidekick')) {
+    import('../tools/sidekick/plugins.js');
+  } else {
+    document.addEventListener('helix-sidekick-ready', () => {
+      import('../tools/sidekick/plugins.js');
+    }, { once: true });
+  }
 }
 
 async function loadPage() {
