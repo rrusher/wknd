@@ -106,7 +106,7 @@ const generateFeed = (
       titleEl.textContent = title;
       linkEl.setAttributeNS('', 'href', path);
       idEl.textContent = baseURL + path;
-      updatedEl.textContent = new Date(Math.round((lastModified - 25569) * 86400 * 1000)).toISOString();
+      updatedEl.textContent = new Date(Math.round(lastModified * 1000)).toISOString();
       summaryEl.textContent = description;
 
       entryEl.appendChild(titleEl);
