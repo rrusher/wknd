@@ -24,6 +24,12 @@
       "passConfig": true,
       "environments": [ "preview", "live", "edit" ],
       "includePaths": ["**.docx**"]
+    },
+    {
+      "id": "tagger",
+      "title": "Tagger",
+      "environments": [ "edit" ],
+      "url": "/tools/tagger/index.html"
     }
   ]
 }
