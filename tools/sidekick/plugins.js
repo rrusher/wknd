@@ -98,7 +98,6 @@ const generateFeed = (
       const entryEl = document.createElementNS(ns, 'entry');
       const titleEl = document.createElementNS(ns, 'title');
       const linkEl = document.createElementNS(ns, 'link');
-      const nameEl = document.createElementNS(ns, 'name');
       const idEl = document.createElementNS(ns, 'id');
       const updatedEl = document.createElementNS(ns, 'updated');
       const summaryEl = document.createElementNS(ns, 'summary');
@@ -111,7 +110,6 @@ const generateFeed = (
 
       entryEl.appendChild(titleEl);
       entryEl.appendChild(linkEl);
-      authorEl.appendChild(nameEl);
       entryEl.appendChild(idEl);
       entryEl.appendChild(updatedEl);
       entryEl.appendChild(summaryEl);
