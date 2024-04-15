@@ -1,7 +1,7 @@
 import { PublicClientApplication } from './msal-browser-2.14.2.js';
 
 const graphURL = 'https://graph.microsoft.com/v1.0';
-const baseURI = 'https://graph.microsoft.com/v1.0/sites/adobe.sharepoint.com,7be4993e-8502-4600-834d-2eac96f9558e,1f8af71f-8465-4c46-8185-b0a6ce9b3c85/drive/root:/';
+const baseURI = 'https://graph.microsoft.com/v1.0/sites/adobe.sharepoint.com,7be4993e-8502-4600-834d-2eac96f9558e,1f8af71f-8465-4c46-8185-b0a6ce9b3c85/drive/root:/wknd';
 
 let connectAttempts = 0;
 let accessToken;
