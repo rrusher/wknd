@@ -23,7 +23,7 @@
       "url": "https://experience.adobe.com/aem/generate-variations",
       "passConfig": true,
       "environments": [ "preview", "live", "edit" ],
-      "includePaths": ["**.docx**"]
+      "includePaths": [ "**.docx**" ]
     },
     {
       "id": "tagger",
@@ -36,7 +36,7 @@
       "title": "Update Feed",
       "environments": [ "dev", "preview" ],
       "event": "update-feed",
-      "includePaths": "/"
+      "includePaths": [ "/" ]
     },
     {
       "id": "publish",
