@@ -9,7 +9,7 @@ let accessToken;
 const sp = {
   clientApp: {
     auth: {
-      clientId: 'f4bd8221-936d-4fd8-949a-8c14864bf16a',
+      clientId: 'f04bc1c2-bc6c-4d64-a624-c44e11213776',
       authority: 'https://login.microsoftonline.com/fa7b1b5a-7b34-4387-94ae-d2c178decee1',
     },
   },
