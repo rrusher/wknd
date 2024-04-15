@@ -13,7 +13,7 @@ indices:
       - '/experiments/**'
       - '/forms/**'
     target: /query-index.json
-        properties:
+    properties:
       lastModified:
         select: none
         value: parseTimestamp(headers["last-modified"], "ddd, DD MMM YYYY hh:mm:ss GMT")
