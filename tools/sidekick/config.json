@@ -42,9 +42,7 @@
       "title": "Update Feed",
       "environments": [ "dev", "preview" ],
       "containerId": "tools",
-      "event": "update-feed",
-      "excludePaths": [ "/**" ],
-      "includePaths": [ "/", "/jp/", "/jp/topics/**" ]
+      "event": "update-feed"
     },
     {
       "id": "publish",
