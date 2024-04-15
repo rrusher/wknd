@@ -64,10 +64,10 @@ class BlogSidekickBanner {
 }
 
 const generateFeed = (
-  feedTitle = 'Adobe Blog',
-  feedAuthor = 'Adobe',
+  feedTitle = 'My Blog',
+  feedAuthor = 'WKND',
   feedData = window.blogIndex?.data || [],
-  baseURL = 'https://blog.adobe.com',
+  baseURL = 'https://blog.mysite.com',
   limit = 50,
 ) => {
   const ns = 'http://www.w3.org/2005/Atom';
@@ -93,12 +93,11 @@ const generateFeed = (
   feedData
     .slice(0, limit - 1)
     .forEach(({
-      date, path, title, author, description,
+      lastModified, path, title, description,
     }) => {
       const entryEl = document.createElementNS(ns, 'entry');
       const titleEl = document.createElementNS(ns, 'title');
       const linkEl = document.createElementNS(ns, 'link');
-      const authorEl = document.createElementNS(ns, 'author');
       const nameEl = document.createElementNS(ns, 'name');
       const idEl = document.createElementNS(ns, 'id');
       const updatedEl = document.createElementNS(ns, 'updated');
@@ -106,15 +105,13 @@ const generateFeed = (
 
       titleEl.textContent = title;
       linkEl.setAttributeNS('', 'href', path);
-      nameEl.textContent = author;
       idEl.textContent = baseURL + path;
-      updatedEl.textContent = new Date(Math.round((date - 25569) * 86400 * 1000)).toISOString();
+      updatedEl.textContent = new Date(Math.round((lastModified - 25569) * 86400 * 1000)).toISOString();
       summaryEl.textContent = description;
 
       entryEl.appendChild(titleEl);
       entryEl.appendChild(linkEl);
       authorEl.appendChild(nameEl);
-      entryEl.appendChild(authorEl);
       entryEl.appendChild(idEl);
       entryEl.appendChild(updatedEl);
       entryEl.appendChild(summaryEl);
