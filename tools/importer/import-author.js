@@ -12,48 +12,95 @@
 /* global WebImporter */
 /* eslint-disable no-console, class-methods-use-this */
 
-const createMetadataBlock = (main, document) => {
+/**
+ * Extracts author metadata from a page's author badge and appends a metadata block
+ * and (optionally) the author's bio to the provided container, then removes the
+ * original badge element from the document.
+ *
+ * The function looks for an element with the selector `.splunkBlogsAuthorBadge`.
+ * If found, it extracts:
+ *  - the author's name from `h1.splunkBlogsAuthorBadge-authorName` (falls back to "Author"),
+ *  - the author's image element from `img.splunkBlogsAuthorBadge-image-src`,
+ *  - the author's description paragraph from `div.splunkBlogsAuthorBadge-authorDescription > p`,
+ *  - a newline-separated list of social link URLs from `params.socialLinks`.
+ *
+ * It constructs a metadata object with keys "Template", "Author", "Image", and
+ * "Social URLs", obtains a metadata block via `WebImporter.Blocks.getMetadataBlock(document, meta)`,
+ * appends that block to `main`, appends the author's bio HTML (if present), and
+ * finally removes the original badge element from the DOM.
+ *
+ * Side effects:
+ *  - Appends nodes to the `main` container.
+ *  - Removes the `.splunkBlogsAuthorBadge` element from the provided `document`.
+ *
+ * @param {HTMLElement|Node} main - Container node to which the metadata block and bio will be appended.
+ * @param {Document} document - Document object used to query and manipulate DOM nodes.
+ * @param {Object} params - Additional parameters.
+ * @param {Iterable<HTMLAnchorElement>|Array<HTMLAnchorElement>|NodeList} [params.socialLinks=[]]
+ *        Collection of anchor elements representing social links. Their `href` values
+ *        will be joined with newline characters to form the "Social URLs" metadata field.
+ * @returns {void}
+ */
+const createMetadataBlock = (main, document, params) => {
   const badge = document.querySelector('.splunkBlogsAuthorBadge');
   if (!badge) return;
 
   const authorName = badge.querySelector('h1.splunkBlogsAuthorBadge-authorName')?.textContent.trim() || 'Author';
   const authorImage = badge.querySelector('img.splunkBlogsAuthorBadge-image-src');
-  const authorDescHTML = badge.querySelector('div.splunkBlogsAuthorBadge-authorDescription > p').innerHTML.trim() || '';
-  const socialLinks = badge.querySelectorAll('div.splunkBlogsAuthorBadge-socialIcons > div');
+  const authorDescHTML = badge.querySelector('div.splunkBlogsAuthorBadge-authorDescription > p');
+
+  // create a const for the socialLinks that are '\n' separated
+  const socialLinks = params.socialLinks.length > 0 ? Array.from(params.socialLinks).map(link => link.href).join('\n') : '';
 
   const meta = {
     Template: 'Author',
     Author: authorName,
     Image: authorImage,
+    'Social URLs': socialLinks
   };
-
-  const socialUrls = [];
-
-  socialLinks.forEach((link) => {
-    socialUrls.push(link.textContent);
-  });
-
-  if (socialUrls.length > 0) {
-    meta['Social URLs'] = socialUrls.join('\n');
-  }
 
   const metaBlock = WebImporter.Blocks.getMetadataBlock(document, meta);
   main.append(metaBlock);
   if (authorDescHTML) {
     const bioWrapper = document.createElement('div');
-    bioWrapper.innerHTML = authorDescHTML;
+    bioWrapper.innerHTML = authorDescHTML.innerHTML.trim();
     main.append(bioWrapper);
   }
   badge.remove();
 };
 
+/**
+ * Generates and appends an "Article List" configuration table for an author page.
+ *
+ * The author page path is derived from the provided URL by:
+ *   - taking the URL's pathname,
+ *   - replacing the locale segment "en_us" with "en-us",
+ *   - removing a trailing ".html" if present,
+ *   - and prefixing the result with the AEM base host
+ *     "https://main--blog--splunk-wm.aem.page".
+ *
+ * The function builds a table represented by a 2D array of cells containing:
+ *   - "Article List" (header)
+ *   - "Dispaly Mode" set to "Paginated" (note: the table label contains a typo "Dispaly")
+ *   - "Filter" set to "Author"
+ *   - "Author URL" containing an anchor (<a>) to the derived author path
+ *   - "Limit" set to 9
+ *
+ * The table DOM is created via WebImporter.DOMUtils.createTable(cells, document) and appended to the provided `main` node.
+ *
+ * @param {Element|DocumentFragment} main - DOM node to which the generated table will be appended. Must support `append`.
+ * @param {string} url - Source URL used to derive the author page path; expected to be a valid URL string or a string parsable by the URL constructor.
+ * @returns {void} Appends the generated table to `main`; no value is returned.
+ * @throws {TypeError} If `url` is not a string or cannot be parsed as a URL, or if `main` does not support DOM append.
+ * @see {WebImporter.DOMUtils.createTable}
+ */
 function addAuthorArticles(main, url) {
-  const authorPath = `https://main--blog--splunk-wm.hlx.page${new URL(url).pathname.replace(/\.html$/, '').replace('en_us', 'en-us')}`;
+  const authorPath = `https://main--blog--splunk-wm.aem.page${new URL(url).pathname.replace('en_us', 'en-us').replace(/\.html$/, '')}`;
   const cells = [
     ['Article List'],
     ['Dispaly Mode', 'Paginated'],
     ['Filter', 'Author'],
-    ['Author URL', `<a href="${authorPath}">${authorPath} </a>`],
+    ['Author URL', `<a href="${authorPath}">${authorPath}</a>`],
     ['Limit', 9],
   ];
   const table = WebImporter.DOMUtils.createTable(cells, document);
@@ -61,6 +108,18 @@ function addAuthorArticles(main, url) {
 }
 
 export default {
+  /**
+   * Preprocess the document prior to transformation to extract empty social links into params
+   * @param {HTMLDocument} document The document
+   * @param {string} url The url of the page imported
+   * @param {string} html The raw html (the document is cleaned up during preprocessing)
+   * @param {object} params Object containing some parameters given by the import process.
+   */
+  preprocess: ({ document, params }) => {
+    const socialLinks = document.querySelectorAll('a.socialIcon-');
+    params.socialLinks = socialLinks;
+  },
+
   /**
    * Apply DOM operations to the provided document and return
    * the root element to be then transformed to Markdown.
@@ -90,10 +149,12 @@ export default {
       'noscript',
     ]);
 
-    createMetadataBlock(main, document);
+    // execute the custom transformations
+    createMetadataBlock(main, document, params);
     addAuthorArticles(main, url);
 
-    // WebImporter.rules.createMetadata(main, document);
+    // Commented out unused default rules
+    /// WebImporter.rules.createMetadata(main, document);
     // WebImporter.rules.transformBackgroundImages(main, document);
     WebImporter.rules.adjustImageUrls(main, url, params.originalURL);
     // WebImporter.rules.convertIcons(main, document);
