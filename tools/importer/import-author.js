@@ -56,8 +56,11 @@ const createMetadataBlock = (main, document, params) => {
     Template: 'Author',
     Author: authorName,
     Image: authorImage,
-    'Social URLs': socialLinks
   };
+  
+  if (socialLinks.length > 0) {
+    meta['Social URLs'] = socialLinks;
+  }
 
   const metaBlock = WebImporter.Blocks.getMetadataBlock(document, meta);
   main.append(metaBlock);
