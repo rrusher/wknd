@@ -98,7 +98,7 @@ function addAuthorArticles(main, url) {
   const authorPath = `https://main--blog--splunk-wm.aem.page${new URL(url).pathname.replace('en_us', 'en-us').replace(/\.html$/, '')}`;
   const cells = [
     ['Article List'],
-    ['Dispaly Mode', 'Paginated'],
+    ['Display Mode', 'Paginated'],
     ['Filter', 'Author'],
     ['Author URL', `<a href="${authorPath}">${authorPath}</a>`],
     ['Limit', 9],
