@@ -48,6 +48,7 @@ const createMetadataBlock = (main, document, params) => {
   const authorName = badge.querySelector('h1.splunkBlogsAuthorBadge-authorName')?.textContent.trim() || 'Author';
   const authorImage = badge.querySelector('img.splunkBlogsAuthorBadge-image-src');
   const authorDescHTML = badge.querySelector('div.splunkBlogsAuthorBadge-authorDescription > p');
+  const headDesc = document.querySelector('meta[property="og:description"]')?.getAttribute('content') || '';
 
   // create a const for the socialLinks that are '\n' separated
   const socialLinks = params.socialLinks.length > 0 ? Array.from(params.socialLinks).map(link => link.href).join('\n') : '';
@@ -55,9 +56,11 @@ const createMetadataBlock = (main, document, params) => {
   const meta = {
     Template: 'Author',
     Author: authorName,
+    Title: `${authorName}'s Blog Posts`,
+    Description: headDesc,
     Image: authorImage,
   };
-  
+
   if (socialLinks.length > 0) {
     meta['Social URLs'] = socialLinks;
   }
@@ -104,7 +107,7 @@ function addAuthorArticles(main, url) {
     ['Display Mode', 'Paginated'],
     ['Filter', 'Author'],
     ['Author URL', `<a href="${authorPath}">${authorPath}</a>`],
-    ['Limit', 9],
+    ['Limit', 6],
   ];
   const table = WebImporter.DOMUtils.createTable(cells, document);
   main.append(table);
