@@ -49,7 +49,11 @@ const createMetadataBlock = (main, document, params) => {
   const authorImage = badge.querySelector('img.splunkBlogsAuthorBadge-image-src');
   const authorDescHTML = badge.querySelector('div.splunkBlogsAuthorBadge-authorDescription > p');
   const headDesc = document.querySelector('meta[property="og:description"]')?.getAttribute('content') || '';
-
+  if (authorImage && authorImage.src.includes('localhost')) {
+    authorImage.src = authorImage.src.replace('localhost', 'www.splunk.com');
+    authorImage.src = authorImage.src.replace(':3001', '');
+  }
+  
   // create a const for the socialLinks that are '\n' separated
   const socialLinks = params.socialLinks.length > 0 ? Array.from(params.socialLinks).map(link => link.href).join('\n') : '';
 
@@ -160,9 +164,9 @@ export default {
     addAuthorArticles(main, url);
 
     // Commented out unused default rules
-    /// WebImporter.rules.createMetadata(main, document);
+    // WebImporter.rules.createMetadata(main, document);
     // WebImporter.rules.transformBackgroundImages(main, document);
-    WebImporter.rules.adjustImageUrls(main, url, params.originalURL);
+    // WebImporter.rules.adjustImageUrls(main, url, params.originalURL);
     // WebImporter.rules.convertIcons(main, document);
 
     return main;
