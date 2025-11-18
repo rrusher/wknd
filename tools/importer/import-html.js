@@ -53,16 +53,6 @@ const createMetadataBlock = (main, document, params) => {
   // create a const for the socialLinks that are '\n' separated
   const socialLinks = params.socialLinks.length > 0 ? Array.from(params.socialLinks).map(link => link.href).join('\n') : '';
 
-  // Get the full DAM asset URL for the author image with imbypass=true
-  if (authorImage) {
-    const src = authorImage.getAttribute('src') || authorImage.src || '';
-    if (src) {
-      const url = new URL(`https://www.splunk.com${src}`);
-      url.searchParams.set('imbypass', 'true');
-      authorImage.src = url.toString();
-    }
-  }
-
   const meta = {
     Template: 'Author',
     Author: authorName,
@@ -95,6 +85,13 @@ const createMetadataBlock = (main, document, params) => {
  *   - and prefixing the result with the AEM base host
  *     "https://main--blog--splunk-wm.aem.page".
  *
+ * The function builds a table represented by a 2D array of cells containing:
+ *   - "Article List" (header)
+ *   - "Dispaly Mode" set to "Paginated" (note: the table label contains a typo "Dispaly")
+ *   - "Filter" set to "Author"
+ *   - "Author URL" containing an anchor (<a>) to the derived author path
+ *   - "Limit" set to 9
+ *
  * The table DOM is created via WebImporter.DOMUtils.createTable(cells, document) and appended to the provided `main` node.
  *
  * @param {Element|DocumentFragment} main - DOM node to which the generated table will be appended. Must support `append`.
@@ -104,7 +101,7 @@ const createMetadataBlock = (main, document, params) => {
  * @see {WebImporter.DOMUtils.createTable}
  */
 function addAuthorArticles(main, url) {
-  const authorPath = `https://main--blog--splunk-wm.aem.page${new URL(url).pathname.replace('_', '-').replace(/\.html$/, '')}`;
+  const authorPath = `https://main--blog--splunk-wm.aem.page${new URL(url).pathname.replace('en_us', 'en-us').replace(/\.html$/, '')}`;
   const cells = [
     ['Article List'],
     ['Display Mode', 'Paginated'],
@@ -158,13 +155,13 @@ export default {
       'noscript',
     ]);
 
-    createMetadataBlock(main, document, params);
-    addAuthorArticles(main, url);
-  
+
     // WebImporter.rules.createMetadata(main, document);
     // WebImporter.rules.transformBackgroundImages(main, document);
     // WebImporter.rules.adjustImageUrls(main, url, params.originalURL);
     // WebImporter.rules.convertIcons(main, document);
+    createMetadataBlock(main, document, params);
+    addAuthorArticles(main, url);
 
     const ret = [];
 
@@ -187,22 +184,22 @@ export default {
       path,
     });
 
-    main.querySelectorAll('img').forEach((img) => {
-      console.log(img.outerHTML);
-      const { src } = img;
-      if (src) {
-        const u = new URL(src);
-        // then, all images
-        ret.push({
-          from: src,
-          path: u.pathname,
-        });
-        // adjust the src to be relative to the current page
-        // img.src = u.pathname;
-        // img.src = `./${u.pathname.substring(u.pathname.lastIndexOf('/') + 1)}`;
+  main.querySelectorAll('img').forEach((img) => {
+    if (img.src.startsWith('/')) {
+      // make absolute
+      const cu = new URL(url);
+      img.src = `${cu.origin}${img.src}`;
+    }
+    try {
+      const u = new URL(img.src);
+      u.searchParams.append('host', u.origin);
+      img.src = `http://localhost:3001${u.pathname}${u.search}`;
+    } catch (error) {
+      console.warn(`Unable to make proxy src for ${img.src}: ${error.message}`);
+    }
+  });
 
-      }
-    });
+    
 
     return ret;
   },
