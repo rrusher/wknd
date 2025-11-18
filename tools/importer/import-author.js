@@ -199,7 +199,7 @@ export default {
         });
         // adjust the src to be relative to the current page
         // img.src = u.pathname;
-        // img.src = `./${u.pathname.substring(u.pathname.lastIndexOf('/') + 1)}`;
+        img.src = `/.import/${u.pathname}`;
 
       }
     });
