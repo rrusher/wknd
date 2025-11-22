@@ -90,7 +90,7 @@ const createMetadataBlock = (main, document, params) => {
  *
  * The author page path is derived from the provided URL by:
  *   - taking the URL's pathname,
- *   - replacing the locale segment "en_us" with "en-us",
+ *   - replacing the locale segment "_" with "-",
  *   - removing a trailing ".html" if present,
  *   - and prefixing the result with the AEM base host
  *     "https://main--blog--splunk-wm.aem.page".
@@ -103,7 +103,7 @@ const createMetadataBlock = (main, document, params) => {
  * @throws {TypeError} If `url` is not a string or cannot be parsed as a URL, or if `main` does not support DOM append.
  * @see {WebImporter.DOMUtils.createTable}
  */
-function addAuthorArticles(main, url) {
+function addAuthorArticles(main, url, document) {
   const authorPath = `https://main--blog--splunk-wm.aem.page${new URL(url).pathname.replace('_', '-').replace(/\.html$/, '')}`;
   const cells = [
     ['Article List'],
@@ -159,7 +159,7 @@ export default {
     ]);
 
     createMetadataBlock(main, document, params);
-    addAuthorArticles(main, url);
+    addAuthorArticles(main, url, document);
   
     // WebImporter.rules.createMetadata(main, document);
     // WebImporter.rules.transformBackgroundImages(main, document);
@@ -179,8 +179,6 @@ export default {
         .replace(/[^a-z0-9/]/gm, '-');
     })(url);
 
-    // multi output import
-
     // first, the main content
     ret.push({
       element: main,
@@ -197,10 +195,15 @@ export default {
           from: src,
           path: u.pathname,
         });
+<<<<<<< HEAD
         // adjust the src to be relative to the current page
         // img.src = u.pathname;
         img.src = `/.import/${u.pathname}`;
 
+=======
+        // adjust the src to be absolute to the DAM
+        img.src = `https://www.splunk.com${u.pathname}`;
+>>>>>>> e0d5616 (update nov21)
       }
     });
 
