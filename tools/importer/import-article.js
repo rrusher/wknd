@@ -16,31 +16,6 @@
 const LOCALE = 'en-us';
 const EDGEURL = 'https://main--blog--splunk-wm.aem.page'
 
-/**
- * Extracts author metadata from a page's author badge and appends a metadata block
- * and (optionally) the author's bio to the provided container, then removes the
- * original badge element from the document.
- *
- * The function looks for an element with the selector `.splunkBlogsAuthorBadge`.
- * If found, it extracts:
- *  - the author's name from `h1.splunkBlogsAuthorBadge-authorName` (falls back to "Author"),
- *  - the author's image element from `img.splunkBlogsAuthorBadge-image-src`,
- *  - the author's description paragraph from `div.splunkBlogsAuthorBadge-authorDescription > p`,
- *  - a newline-separated list of social link URLs from `params.socialLinks`.
- *
- * It constructs a metadata object with keys "Template", "Author", "Image", and
- * "Social URLs", obtains a metadata block via `WebImporter.Blocks.getMetadataBlock(document, meta)`,
- * appends that block to `main`, appends the author's bio HTML (if present), and
- * finally removes the original badge element from the DOM.
- *
- * Side effects:
- *  - Appends nodes to the `main` container.
- *  - Removes the `.splunkBlogsAuthorBadge` element from the provided `document`.
- *
- * @param {HTMLElement|Node} main - Container node to which the metadata block and bio will be appended.
- * @param {Document} document - Document object used to query and manipulate DOM nodes.
- * @returns {void}
- */
 const createMetadataBlock = (main, document, params) => {
   const hero = main.querySelector('.splunkBlogsArticle-header-Wrapper');
   if (!hero) return;
@@ -118,43 +93,37 @@ function findKeyTakeaways(main, document) {
   keyTakeawaysSection.replaceWith(table);
 }
 
-function findIframeBlocks(main, document, params) {
-  if (params.pageIframes.length === 0) return;
-  params.pageIframes.forEach((iframe) => {
-    const src = iframe.getAttribute('src') || '';
-    const a = document.createElement('a');
-    a.href = src;
-    a.textContent = src;
-    if (src.includes('embed.podcasts.apple.com') || src.includes('www.podbean.com')) {
-      const cells = [
-        ['Podcast'],
-        [a],
-      ];
-      const table = WebImporter.DOMUtils.createTable(cells, document);
-      iframe.replaceWith(table);
-    } else if (src.includes('youtube.com') || src.includes('youtu.be') || src.includes('vimeo.com')) {
-      const cells = [
-        ['Video'],
-        [src],
-      ];
-      const table = WebImporter.DOMUtils.createTable(cells, document);
-      iframe.replaceWith(table);
-    } else {
-      const cells = [
-        ['Iframe'],
-        [a],
-      ];
-      const table = WebImporter.DOMUtils.createTable(cells, document);
-      iframe.replaceWith(table);
+function findBodyIframes(main, document, params) {
+  if (!params.bodyIframes || params.bodyIframes.length === 0) return;
+  params.bodyIframes.forEach((iframe) => {
+    const src = iframe.getAttribute('src');
+    if (src) {
+      const a = document.createElement('a');
+      a.href = src;
+      a.textContent = src;
+      if (src.includes('embed.podcasts.apple.com') || src.includes('www.podbean.com')) {
+        const cells = [
+          ['Podcast'],
+          [a],
+        ];
+        const table = WebImporter.DOMUtils.createTable(cells, document);
+        iframe.replaceWith(table);
+      } else if (src.includes('youtube.com') || src.includes('youtu.be') || src.includes('vimeo.com')) {
+        const cells = [
+          ['Video'],
+          [a],
+        ];
+        const table = WebImporter.DOMUtils.createTable(cells, document);
+        iframe.replaceWith(table);
+      }
     }
   });
 }
 
 // Find XF in the body of the article
-function findExperienceFragments(main, document, params) {
-  const xfSections = params.bodyXFs
-  if (xfSections.length === 0) return;
-  xfSections.forEach((section) => {
+function findXFs(main, document, params) {
+  if (!params.bodyXFs || params.bodyXFs.length === 0) return;
+  params.bodyXFs.forEach((section) => {
     const resource = section.querySelector('a.ga-cta').pathname;
     const page = resource.replace(/\.html$/, '').split('/').pop();
     const a = document.createElement('a');
@@ -166,12 +135,12 @@ function findExperienceFragments(main, document, params) {
       [a],
     ];
     const table = WebImporter.DOMUtils.createTable(cells, document);
-    main.append(table);
-    //section.before(table);
+    console.log('Replacing section:', section);
+    section.replaceWith(table);
   });
 }
 
-function findVideoBlocks(main, document) {
+function findVidyard(main, document) {
   const videoSections = main.querySelectorAll('.splunk-video-wrapper');
   if (videoSections.length === 0) return;
   videoSections.forEach((section) => {
@@ -191,19 +160,7 @@ function findVideoBlocks(main, document) {
       ];
       const table = WebImporter.DOMUtils.createTable(cells, document);
       section.replaceWith(table);
-
-    } else if (src.includes('youtube.com') || src.includes('youtu.be') || src.includes('vimeo.com')) {
-    const src = section.getAttribute('src') || '';
-    const a = document.createElement('a');
-    a.href = src;
-    a.textContent = src;
-          const cells = [
-        ['Video'],
-        [a],
-      ];
-      const table = WebImporter.DOMUtils.createTable(cells, document);
-      section.replaceWith(table);
-    }
+    } 
   });
 }
 
@@ -267,7 +224,7 @@ function findPromoCard(main, document) {
 }
 
 function findAccordion(main, document) {
-  const accordionSections = document.querySelectorAll('div.accordion');
+  const accordionSections = document.querySelectorAll('div.accordion:has(.accordion-box-item)');
   if (accordionSections.length === 0) return;
   accordionSections.forEach((section) => {
     const container = document.createElement('div');
@@ -338,18 +295,20 @@ function addSidebar(main, document, params) {
   }
 
   const exploreMoreDivs = document.createElement('div');
-  exploreMore.forEach((item) => {
-    const headerText = item.querySelector('div.header')?.textContent.trim() || '';
-    const ul = item.querySelector('ul');
-    if (headerText) {
-      const strong = document.createElement('strong');
-      strong.textContent = headerText;
-      exploreMoreDivs.append(strong);
-    }
-    if (ul) {
-      exploreMoreDivs.append(ul.cloneNode(true));
-    }
-  });
+  if (exploreMore) {
+    exploreMore.forEach((item) => {
+      const headerText = item.querySelector('div.header')?.textContent.trim() || '';
+      const ul = item.querySelector('ul');
+      if (headerText) {
+        const strong = document.createElement('strong');
+        strong.textContent = headerText;
+        exploreMoreDivs.append(strong);
+      }
+      if (ul) {
+        exploreMoreDivs.append(ul.cloneNode(true));
+      }
+    });
+  }
 
   const cells = [
     ['Sidebar'],
@@ -371,22 +330,21 @@ function addSidebar(main, document, params) {
 }
 
 function addRelatedArticles(main, document, params) {
+  if (!params.relatedArticles || params.relatedArticles.length === 0) return;
   let articleList = '';
-  if (params.relatedArticles && params.relatedArticles.length > 0) {
-    const container = document.createElement('div');
-    const articles = Array.from(params.relatedArticles);
-    articles.forEach((article, idx) => {
-      const path = `${EDGEURL}${article.pathname.replace('_', '-').replace(/\.html$/, '')}`;
-      const a = document.createElement('a');
-      a.href = path;
-      a.textContent = article.textContent.trim();
-      container.append(a);
-      if (idx < articles.length - 1) {
-        container.append(document.createElement('br'));
-      }
-    });
-    articleList = container;
-  }
+  const container = document.createElement('div');
+  const articles = Array.from(params.relatedArticles);
+  params.relatedArticles.forEach((article, idx) => {
+    const path = `${EDGEURL}${article.pathname.replace('_', '-').replace(/\.html$/, '')}`;
+    const a = document.createElement('a');
+    a.href = path;
+    a.textContent = article.textContent.trim();
+    container.append(a);
+    if (idx < params.relatedArticles.length - 1) {
+      container.append(document.createElement('br'));
+    }
+  });
+  articleList = container;
 
   const cells = [
     ['Latest Articles'],
@@ -449,11 +407,11 @@ export default {
     params.relatedArticles = document.querySelectorAll('.latest-blogs-container .item .card .headline');
     params.articleGuide = document.querySelectorAll('.splunkBlogsArticle-body-sidebarExploreMoreSection .blogs-article-guide');
     params.floatingCard = document.querySelector('.splunkBlogsArticle-body-sidebarFloatingCardSection .cmp-experiencefragment--floating-promo-card');
-    params.pageIframes = document.querySelectorAll('div iframe');
+    params.bodyIframes = document.querySelectorAll('div.splunkBlogsArticle-body-Wrapper iframe');
     params.aboutXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--about-splunk');
     params.subscribeXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--subscribe-footer');
     params.perspectivesXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--perspectives-promo')
-    params.bodyXFs = document.querySelectorAll('.splunkBlogsArticle-body-Wrapper .splunkBlogsArticle-body-content div.experience-fragment > div');
+    params.bodyXFs = document.querySelectorAll('.splunkBlogsArticle-body-Wrapper .splunkBlogsArticle-body-content div.experience-fragment');
     // extract splunkMeta from scripts
     const scripts = document.querySelectorAll('script');
     scripts.forEach((script) => {
@@ -464,7 +422,13 @@ export default {
       }
     });
   },
-
+  onLoad: async ({ document, url, params }) => {
+    try {
+      await WebImporter.Loader.waitForElement('.splunkBlogsArticle-body-Wrapper .splunkBlogsArticle-body-content div.experience-fragment', document, 10000, 500);
+    } catch (error) {
+      throw new Error(`Element .wait-for-me not found in page ${params.originalURL}`);
+    }
+  },
   /**
    * Apply DOM operations to the provided document and return
    * the root element to be then transformed to Markdown.
@@ -496,13 +460,6 @@ export default {
     ]);
 
     createMetadataBlock(main, document, params);
-    findKeyTakeaways(main, document);
-    findIframeBlocks(main, document, params);
-    findVideoBlocks(main, document, params);
-    findTables(main, document);
-    findPromoCard(main, document);
-    findAccordion(main, document);
-    findExperienceFragments(main, document, params);
     addSidebar(main, document, params);
     addHR(main);
     addSimpleBlock('Author Bio List', '', main, document);
@@ -512,11 +469,13 @@ export default {
     findAboutSplunkXF(main, document, params);
     findSubscriptXF(main, document, params);
     findPerspectivesXF(main, document, params);
-
-    // WebImporter.rules.createMetadata(main, document);
-    // WebImporter.rules.transformBackgroundImages(main, document);
-    // WebImporter.rules.adjustImageUrls(main, url, params.originalURL);
-    // WebImporter.rules.convertIcons(main, document);
+    findBodyIframes(main, document, params);
+    findKeyTakeaways(main, document);
+    findXFs(main, document, params);
+    findVidyard(main, document, params);
+    findTables(main, document);
+    findPromoCard(main, document);
+    findAccordion(main, document);
 
     const ret = [];
 
@@ -531,8 +490,6 @@ export default {
         .replace(/[^a-z0-9/]/gm, '-');
     })(url);
 
-    // multi output import
-
     // first, the main content
     ret.push({
       element: main,
@@ -544,7 +501,6 @@ export default {
       const { src } = img;
       if (src) {
         const u = new URL(src);
-        // then, all images
         ret.push({
           from: src,
           path: u.pathname,
