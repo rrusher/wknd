@@ -16,6 +16,17 @@
 const LOCALE = 'en-us';
 const EDGEURL = 'https://main--blog--splunk-wm.aem.page'
 
+/**
+ * Sanitizes a name for use as class name.
+ * @param {string} name The unsanitized name
+ * @returns {string} The class name
+ */
+export function toClassName(name) {
+  return typeof name === 'string'
+    ? name.toLowerCase().replace(/[^0-9a-z]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+    : '';
+}
+
 const createMetadataBlock = (main, document, params) => {
   const hero = main.querySelector('.splunkBlogsArticle-header-Wrapper');
   if (!hero) return;
@@ -93,9 +104,10 @@ function findKeyTakeaways(main, document) {
   keyTakeawaysSection.replaceWith(table);
 }
 
-function findBodyIframes(main, document, params) {
-  if (!params.bodyIframes || params.bodyIframes.length === 0) return;
-  params.bodyIframes.forEach((iframe) => {
+function findBodyIframes(main, document) {
+  const iframeEl = document.querySelectorAll('.splunkBlogsArticle-body-content iframe');
+  if (iframeEl.length === 0) return;
+  iframeEl.forEach((iframe) => {
     const src = iframe.getAttribute('src');
     if (src) {
       const a = document.createElement('a');
@@ -106,6 +118,8 @@ function findBodyIframes(main, document, params) {
           ['Podcast'],
           [a],
         ];
+        const playlist = iframe.querySelector('ul.player-list');
+        if (playlist) playlist.remove();
         const table = WebImporter.DOMUtils.createTable(cells, document);
         iframe.replaceWith(table);
       } else if (src.includes('youtube.com') || src.includes('youtu.be') || src.includes('vimeo.com')) {
@@ -120,23 +134,69 @@ function findBodyIframes(main, document, params) {
   });
 }
 
-// Find XF in the body of the article
-function findXFs(main, document, params) {
-  if (!params.bodyXFs || params.bodyXFs.length === 0) return;
-  params.bodyXFs.forEach((section) => {
-    const resource = section.querySelector('a.ga-cta').pathname;
-    const page = resource.replace(/\.html$/, '').split('/').pop();
-    const a = document.createElement('a');
-    const loc = `${EDGEURL}/${LOCALE}/blog/fragments/${page}`
-    a.href = loc;
-    a.textContent = loc;
+function findCards(main, document) {
+  const decks = document.querySelectorAll('.splunkBlogsArticle-body-content .customer-generic-cards > div .carousel-inner');
+  if (decks.length === 0) return;
+  decks.forEach((deck) => {
     const cells = [
-      ['Fragment'],
-      [a],
-    ];
+      ['Promo Card'],
+    ]
+    const cards = deck.querySelectorAll('.item');
+    cards.forEach((card) => {
+      const wrapper = document.createElement('div');
+      const imgs = card.querySelectorAll('img');
+      const title = card.querySelector('.anchor-wrapper-card-title');
+      const link = card.querySelector('.splunk-btn.ga-cta');
+      imgs.forEach((img) => {
+        wrapper.append(img)
+      })
+      wrapper.append(title);
+      wrapper.append(link);
+      cells.push([wrapper]);
+    });
     const table = WebImporter.DOMUtils.createTable(cells, document);
-    console.log('Replacing section:', section);
-    section.replaceWith(table);
+    deck.parentElement.parentElement.parentElement.replaceWith(table);
+  });
+}
+
+function findDisclaimer(main, document) {
+  const disclaimerXF = document.querySelector('.splunkBlogsArticle-body-content .cmp-experiencefragment--disclaimer .tabContent');
+  if (!disclaimerXF) return;
+  const a = document.createElement('a');
+  const loc = `${EDGEURL}/${LOCALE}/blog/fragments/disclaimer`;
+  a.href = loc;
+  a.textContent = loc;
+  const cells = [
+    ['Fragment'],
+    [loc],
+  ]
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+  disclaimerXF.replaceWith(table);
+}
+
+// Find XF in the body of the article
+function findXFs(main, document) {
+  const xfEl = document.querySelectorAll('div.splunkBlogsArticle-body-content div.experience-fragment');
+  if (xfEl.length === 0) return;
+  xfEl.forEach((section) => {
+    const resource = section.querySelector('a.ga-cta')?.pathname;
+    const title = section.querySelector('h3')?.textContent.trim();
+    let page;
+    if (resource) {
+      page = resource.replace(/\.html$/, '').split('/').pop();
+    } else {
+      page = toClassName(title);
+    }
+      const a = document.createElement('a');
+      const loc = `${EDGEURL}/${LOCALE}/blog/fragments/${page}`
+      a.href = loc;
+      a.textContent = loc;
+      const cells = [
+        ['Fragment'],
+        [a],
+      ];
+      const table = WebImporter.DOMUtils.createTable(cells, document);
+      section.replaceWith(table);
   });
 }
 
@@ -165,7 +225,7 @@ function findVidyard(main, document) {
 }
 
 function findTables(main, document) {
-  const tableSections = document.querySelectorAll('div.text table');
+  const tableSections = document.querySelectorAll('.splunkBlogsArticle-body-content div.text table');
   if (tableSections.length === 0) return;
   tableSections.forEach((table) => {
     const cells = [];
@@ -202,15 +262,23 @@ function findPromoCard(main, document) {
     if (settings.includes('splunk-gradient')) variantList.push('gradient border');
     if (settings.includes('splunk-top-border')) variantList.push('top border');
     if (settings.includes('splunk-bottom-border')) variantList.push('bottom border');
-    if (settings.includes('splunk-light-gray')) variantList.push('dark gray');
+    if (settings.includes('splunk-gray-light')) variantList.push('dark gray');
     if (settings.includes('boxShadow')) variantList.push('shadow');
-    // clickable
-    // image left
-    // dynamic link
-    // secondary link
-    // light gray
-    // float image right
-    // float image left
+    if (settings.includes('card-header__left')) variantList.push('image left');
+    if (settings.includes('sp-btn-borderless')) {
+      if (settings.includes('sp-btn-darkGray')) {
+        variantList.push('secondary link');
+      } else {
+        variantList.push('dynamic link');
+      }
+    }
+    if (settings.includes('splunk-gray-lightest')) variantList.push('light gray');
+    const cardImg = card.querySelector('img');
+    const floatDir = cardImg?.style?.float;
+    if (!floatDir == '') {
+      variantList.push(`float image ${floatDir}`)
+    }
+    // clickable - data-ctalink or data-href
 
     variants = [...new Set(variantList)].join(', ');
     const title = variants.length ? `Promo Card (${variants})` : 'Promo Card';
@@ -220,6 +288,29 @@ function findPromoCard(main, document) {
     ];
     const table = WebImporter.DOMUtils.createTable(cells, document);
     section.replaceWith(table);
+  });
+}
+
+function findSnippet(main, document) {
+  const snippets = document.querySelectorAll('.splunkBlogsArticle-body-content .blogsCodeContainer');
+  if (snippets.length === 0) return;
+  snippets.forEach((container) => {
+    const title = container.querySelector('.blogsContentTitle-title');
+    const label = container.querySelector('.blogsContentTitle-label');
+    const snippet = container.querySelector('.blogsCodeBody code');
+    const langClass = [...snippet.classList].find(c => c.startsWith('language-'));
+    const trimmed = langClass?.replace('language-', '');
+    const copyBtn = container.querySelector('.blogsContentTitle-copyButton');
+    const cells = [
+      ['Code Snippet'],
+      ['Snippet', snippet],
+    ];
+    if (title) cells.push('Title', title);
+    if (label) cells.push('Label', label);
+    if (trimmed) cells.push('Type', trimmed)
+    if (title) cells.push('Show Copy Button', copyBtn);
+    const table = WebImporter.DOMUtils.createTable(cells, document);
+    container.replaceWith(table);
   });
 }
 
@@ -250,40 +341,55 @@ function findAccordion(main, document) {
   });
 }
 
-function findAboutSplunkXF(main, document, params) {
-  if (!params.aboutXF) return;
+function findAboutSplunkXF(main, document) {
+  const aboutXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--about-splunk');
+  if (!aboutXF) return;
   const a = document.createElement('a');
   const loc = `${EDGEURL}/${LOCALE}/blog/fragments/about-splunk`;
   a.href = loc;
   a.textContent = loc;
-  addSimpleBlock('Fragment', a, main, document);
-  addHR(main);
+  const cells = [
+    ['Fragment'],
+    [loc],
+  ]
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+  aboutXF.replaceWith(table);
 }
 
-function findSubscriptXF(main, document, params) {
-  if (!params.subscribeXF) return;
+function findSubscriptXF(main, document) {
+  const subscribeXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--subscribe-footer');
+  if (!subscribeXF) return;
   const a = document.createElement('a');
   const loc = `${EDGEURL}/${LOCALE}/blog/fragments/subscribe-footer`;
   a.href = loc;
   a.textContent = loc;
-  addSimpleBlock('Fragment', a, main, document);
-  addHR(main);
+  const cells = [
+    ['Fragment'],
+    [loc],
+  ]
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+  subscribeXF.replaceWith(table);
 }
 
-function findPerspectivesXF(main, document, params) {
-  if (!params.perspectivesXF) return;
+function findPerspectivesXF(main, document) {
+  const perspectivesXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--perspectives-promo')
+  if (!perspectivesXF) return;
   const a = document.createElement('a');
   const loc = `${EDGEURL}/${LOCALE}/blog/fragments/perspectives-promo`;
   a.href = loc;
   a.textContent = loc;
-  addSimpleBlock('Fragment', a, main, document);
-  addHR(main);
+  const cells = [
+    ['Fragment'],
+    [loc],
+  ]
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+  perspectivesXF.replaceWith(table);
 }
 
-function addSidebar(main, document, params) {
-  const exploreMore = params.articleGuide;
-  const floatingCard = params.floatingCard;
-
+function addSidebar(main, document) {
+  const exploreMore = document.querySelector('.splunkBlogsArticle-body-sidebarExploreMoreSection .blogs-article-guide');
+  const floatingCard = document.querySelector('.splunkBlogsArticle-body-sidebarFloatingCardSection .cmp-experiencefragment--floating-promo-card');
+  const floatingList = document.querySelector('.splunkBlogsArticle-body-sidebarFloatingCardSection .cmp-experiencefragment--disclaimer');
   const floatingCardDiv = document.createElement('div');
   if (floatingCard) {
     const resource = floatingCard.querySelector('a.img-link.ga-cta').pathname;
@@ -296,9 +402,8 @@ function addSidebar(main, document, params) {
 
   const exploreMoreDivs = document.createElement('div');
   if (exploreMore) {
-    exploreMore.forEach((item) => {
-      const headerText = item.querySelector('div.header')?.textContent.trim() || '';
-      const ul = item.querySelector('ul');
+      const headerText = exploreMore.querySelector('div.header')?.textContent.trim() || '';
+      const ul = exploreMore.querySelector('ul');
       if (headerText) {
         const strong = document.createElement('strong');
         strong.textContent = headerText;
@@ -307,7 +412,21 @@ function addSidebar(main, document, params) {
       if (ul) {
         exploreMoreDivs.append(ul.cloneNode(true));
       }
-    });
+  }
+
+  const floatListDivs = document.createElement('div');
+  if (floatingList) {
+      const headerText = floatingList.querySelector('div.header')?.textContent.trim() || '';
+      const ul = floatingList.querySelector('ul');
+      if (headerText) {
+        const strong = document.createElement('strong');
+        strong.textContent = headerText;
+        floatListDivs.append(strong);
+      }
+      if (ul) {
+        floatListDivs.append(ul.cloneNode(true));
+      }
+    floatingList.remove();
   }
 
   const cells = [
@@ -316,31 +435,48 @@ function addSidebar(main, document, params) {
   if (exploreMoreDivs.children.length > 0) {
     cells.push([exploreMoreDivs]);
   }
+  if (floatListDivs.children.length > 0) {
+    cells.push([floatListDivs]);
+  }
   cells.push([floatingCardDiv]);
 
+  const wrapper = document.createElement('div');
   const table = WebImporter.DOMUtils.createTable(cells, document);
-  main.append(table);
-
+  wrapper.append(table);
   const sectionCells = [
     ['Section Metadata'],
     ['Style', 'two-column'],
   ];
   const sectionMeta = WebImporter.DOMUtils.createTable(sectionCells, document);
-  main.append(sectionMeta);
+  wrapper.append(sectionMeta);
+  wrapper.append(document.createElement('hr'));
+  floatingCard.replaceWith(wrapper);
 }
 
-function addRelatedArticles(main, document, params) {
-  if (!params.relatedArticles || params.relatedArticles.length === 0) return;
+function findAuthors(main, document) {
+  const authorsDiv = document.querySelector('.splunkBlogsArticle-body-Wrapper .splunkBlogsArticle-body-author');
+  if (!authorsDiv) return;
+  const cells = [
+    ['Author Bio List'],
+  ];
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+  authorsDiv.replaceWith(table);
+}
+
+function addRelatedArticles(main, document) {
+  const latestBlog = document.querySelector('.latestblog');
+  const relatedArticles = document.querySelectorAll('.latest-blogs-container .item .card .headline');
+
+  if (relatedArticles.length === 0) return;
   let articleList = '';
   const container = document.createElement('div');
-  const articles = Array.from(params.relatedArticles);
-  params.relatedArticles.forEach((article, idx) => {
+  relatedArticles.forEach((article, idx) => {
     const path = `${EDGEURL}${article.pathname.replace('_', '-').replace(/\.html$/, '')}`;
     const a = document.createElement('a');
     a.href = path;
     a.textContent = article.textContent.trim();
     container.append(a);
-    if (idx < params.relatedArticles.length - 1) {
+    if (idx < relatedArticles.length - 1) {
       container.append(document.createElement('br'));
     }
   });
@@ -354,45 +490,7 @@ function addRelatedArticles(main, document, params) {
   ];
 
   const table = WebImporter.DOMUtils.createTable(cells, document);
-  main.append(table);
-}
-
-function addSimpleBlock(type, property, main, document) {
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  const tbody = document.createElement('tbody');
-  const cells = [
-    [type],
-  ];
-  // if property is not empty string
-  if (property != '') {
-    cells.push([property]);
-  }
-  cells.forEach((rowCells, rowIndex) => {
-    const row = document.createElement('tr');
-    rowCells.forEach((cellContent) => {
-      const cell = rowIndex === 0 ? document.createElement('th') : document.createElement('td');
-      if (typeof cellContent === 'object') {
-        cell.append(cellContent);
-      } else {
-        cell.textContent = cellContent;
-      }
-      row.append(cell);
-    });
-    if (rowIndex === 0) {
-      thead.append(row);
-    } else {
-      table.append(row);
-    }
-  });
-  table.append(thead, tbody);
-
-  main.append(table);
-}
-
-function addHR(main) {
-  const hr = document.createElement('hr');
-  main.append(hr);
+  latestBlog.replaceWith(table);
 }
 
 export default {
@@ -404,14 +502,6 @@ export default {
    * @param {object} params Object containing some parameters given by the import process.
    */
   preprocess: ({ document, params }) => {
-    params.relatedArticles = document.querySelectorAll('.latest-blogs-container .item .card .headline');
-    params.articleGuide = document.querySelectorAll('.splunkBlogsArticle-body-sidebarExploreMoreSection .blogs-article-guide');
-    params.floatingCard = document.querySelector('.splunkBlogsArticle-body-sidebarFloatingCardSection .cmp-experiencefragment--floating-promo-card');
-    params.bodyIframes = document.querySelectorAll('div.splunkBlogsArticle-body-Wrapper iframe');
-    params.aboutXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--about-splunk');
-    params.subscribeXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--subscribe-footer');
-    params.perspectivesXF = document.querySelector('div.experience-fragment > div.cmp-experiencefragment--perspectives-promo')
-    params.bodyXFs = document.querySelectorAll('.splunkBlogsArticle-body-Wrapper .splunkBlogsArticle-body-content div.experience-fragment');
     // extract splunkMeta from scripts
     const scripts = document.querySelectorAll('script');
     scripts.forEach((script) => {
@@ -422,13 +512,7 @@ export default {
       }
     });
   },
-  onLoad: async ({ document, url, params }) => {
-    try {
-      await WebImporter.Loader.waitForElement('.splunkBlogsArticle-body-Wrapper .splunkBlogsArticle-body-content div.experience-fragment', document, 10000, 500);
-    } catch (error) {
-      throw new Error(`Element .wait-for-me not found in page ${params.originalURL}`);
-    }
-  },
+
   /**
    * Apply DOM operations to the provided document and return
    * the root element to be then transformed to Markdown.
@@ -450,32 +534,30 @@ export default {
       'body #panel-sharer-overlay',
       'body .skipMainContent',
       'body .globalcomponent-enabler-header',
-      'body .globalcomponent-enabler-footer',
-      'body .experience-fragment.experiencefragment',
-      'body .latestblog',
-      'body .d-done',
+      'body .cmp-experiencefragment--sub-nav-blogs',
       'body .splunkBlogsArticle-body-header',
-      'iframe',
+      'body .globalcomponent-enabler-footer',
+      'body .d-done',
       'noscript',
     ]);
 
     createMetadataBlock(main, document, params);
     addSidebar(main, document, params);
-    addHR(main);
-    addSimpleBlock('Author Bio List', '', main, document);
-    addHR(main);
+    findDisclaimer(main, document);
+    findAuthors(main, document);
     addRelatedArticles(main, document, params);
-    addHR(main);
     findAboutSplunkXF(main, document, params);
     findSubscriptXF(main, document, params);
     findPerspectivesXF(main, document, params);
+    findXFs(main, document, params);
     findBodyIframes(main, document, params);
     findKeyTakeaways(main, document);
-    findXFs(main, document, params);
     findVidyard(main, document, params);
     findTables(main, document);
     findPromoCard(main, document);
     findAccordion(main, document);
+    findSnippet(main, document);
+    findCards(main, document);
 
     const ret = [];
 
