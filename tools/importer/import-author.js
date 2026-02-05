@@ -195,15 +195,10 @@ export default {
           from: src,
           path: u.pathname,
         });
-<<<<<<< HEAD
-        // adjust the src to be relative to the current page
-        // img.src = u.pathname;
-        img.src = `/.import/${u.pathname}`;
-
-=======
-        // adjust the src to be absolute to the DAM
-        img.src = `https://www.splunk.com${u.pathname}`;
->>>>>>> e0d5616 (update nov21)
+        // adjust the image src to be absolute to the DAM
+        if (img.src.includes('localhost:3001')) {
+          img.src = `https://www.splunk.com${u.pathname}`;
+        }
       }
     });
 
